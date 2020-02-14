@@ -1,0 +1,16 @@
+
+Bootstrap: docker
+
+From: continuumio/miniconda3
+
+%environment
+ PATH=/opt/conda/envs/container/bin:$PATH
+
+%post
+ echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc
+ echo "source activate container" > ~/.bashrc
+ /opt/conda/bin/conda create -n container  -c bioconda  -y  samtools=1.9 
+
+%runscript
+ exec samtools "$@"
+

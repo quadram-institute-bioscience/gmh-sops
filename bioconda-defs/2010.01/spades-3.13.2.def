@@ -1,0 +1,33 @@
+BootStrap: docker
+From: centos:7
+
+%runscript
+	exec spades.py "$@"
+
+%post
+        export INST_DIR=/opt/software
+        mkdir -p $INST_DIR
+
+        #Pre-requirements
+        yum -y install wget bzip2 tar
+
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+        bash ~/miniconda.sh -b -p $INST_DIR/miniconda
+        export PATH="$INST_DIR/miniconda/bin:$PATH"
+
+        conda config --add channels defaults
+        conda config --add channels conda-forge
+        conda config --add channels bioconda
+
+        conda install -y --only-deps spades=3.13.2
+
+        ls $INST_DIR/miniconda/bin > $INST_DIR/binbefore
+
+        conda install -y spades=3.13.2
+
+        ls $INST_DIR/miniconda/bin > $INST_DIR/binafter
+        for i in `ls $INST_DIR/miniconda/bin`; do 
+                ln -s $INST_DIR/miniconda/bin/${i} /usr/local/bin/${i}; 
+        done
+        awk 'FNR==NR {a[$0]++; next} !a[$0]' $INST_DIR/binbefore $INST_DIR/binafter > $INST_DIR/unique_to_package
+
