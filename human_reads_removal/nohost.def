@@ -1,0 +1,22 @@
+
+Bootstrap: docker
+
+From: continuumio/miniconda3
+
+%environment
+ PATH=/opt/conda/envs/container/bin:/scripts/:$PATH
+
+%files
+ nohost /scripts
+
+%post
+ echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc
+ echo "source activate container" > ~/.bashrc
+ /opt/conda/bin/conda create -n container  -c bioconda  -y  interleafq  bbmap=38.76  samtools=1.10  fastp=0.20.0 covtobed pigz
+ export PATH=/opt/conda/envs/container/bin:/scripts/:$PATH
+ #bbmap.sh ref=/scripts/hg19_main_mask_ribo_animal_allplant_allfungus.fa path=/scripts/ -Xmx24000m
+
+%runscript
+ exec nohost "$@"
+
+

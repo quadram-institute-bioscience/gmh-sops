@@ -1,0 +1,172 @@
+#!/usr/bin/env perl
+
+use 5.012;
+use Getopt::Long;
+use FindBin qw($RealBin);
+use Term::ANSIColor qw(:constants);
+my $NAME     = 'HumanScreen';
+my $VERSION  = '1.01';
+
+my ($opt_R1, $opt_R2, $opt_outbase, $opt_skipqual, $opt_debug);
+my $opt_threads    = 1;
+my $opt_minlen     = 50;
+my $opt_mem_mb     = 24000;
+my $opt_minid      = 0.95;
+my $opt_reference  = "$RealBin/hg19_main_mask_ribo_animal_allplant_allfungus.fa";
+my $opt_trimfront1 = 0;
+my $opt_trimfront2 = 0;
+my $opt_minqual    = 20;
+
+my $_opt = GetOptions(
+  '1|first-pair=s'     => \$opt_R1,
+  '2|second-pair=s'    => \$opt_R2,
+  'r|reference=s'      => \$opt_reference,
+  't|threads=i'        => \$opt_threads,
+  'm|minlen=i'         => \$opt_minlen,
+  'i|minid=f'          => \$opt_minid,
+  'q|minqual=f'        => \$opt_minqual,
+  'o|outbase=s'        => \$opt_outbase,
+  's|skipqual'         => \$opt_skipqual,
+  'd|debug'            => \$opt_debug,
+);
+
+usage() if ((not defined $opt_R1) or (not defined $opt_outbase));
+
+if (not -e "$opt_R1") {
+  die "FATAL ERROR: First input file not found: $opt_R1";
+}
+
+if (defined $opt_R2 and not -e "$opt_R2") {
+  die "FATAL ERROR: Second input file not found: $opt_R2";
+}
+# QUALITY Check
+# =================
+if (not defined $opt_skipqual) {
+
+  my $fastp_cmd = qq(fastp --in1 "$opt_R1" --in2 "$opt_R2" --out1 "$opt_R1.filt.fastq.gz" --out2 "$opt_R2.filt.fastq.gz" ) .
+                  qq(--length_required $opt_minlen --qualified_quality_phred $opt_minqual ) .
+                  qq(--trim_front1 $opt_trimfront1 --trim_front2 $opt_trimfront2 --json "$opt_outbase.json" --html /dev/null );
+
+  execute($fastp_cmd);
+
+  die "FATAL ERROR:\nOutput of fastp is empty: <$opt_R1.tmp>\n" 
+      if (not -s "$opt_R1.filt.fastq.gz");
+
+  $opt_R1 = "$opt_R1.filt.fastq.gz";
+  $opt_R2 = "$opt_R2.filt.fastq.gz";
+
+}  
+
+
+# Mapping
+# ===================
+my $ADD_R2 = '';
+if (defined $opt_R2) {
+  $ADD_R2 = qq( in2="$opt_R2" outu2="${opt_outbase}_R2.fq.gz" );
+}
+
+
+my $bbmap_cmd = qq(bbmap.sh overwrite=f ref="$opt_reference" path="$RealBin" in="$opt_R1" ) .
+                qq(pigz=t threads=$opt_threads minid=$opt_minid $ADD_R2) .
+                qq(outu="${opt_outbase}_R1.fq.gz"  -Xmx${opt_mem_mb}m);
+
+
+
+execute($bbmap_cmd);
+
+sub usage {
+ 
+ say STDERR " $NAME, ver. $VERSION";
+ say STDERR ' ', '-' x 60;
+ say STDERR "* -1, --first-pair  FILE  (first in pair R1 file)";
+ say STDERR "  -2, --second-pair FILE  (second in pair R2 file)";
+ say STDERR "* -o, --outbase     FILE  (basename of the output files)";
+ say STDERR "  -t, --threads     INT   (number of threads)";
+ say STDERR "  -s, --skipqual          (skip quality pre-filtering [fastp])";
+ say STDERR "  -m, --minlen      INT   (minimum length of reads)";
+ say STDERR "  -q, --minqual     DEC   (minimum qualified quality)";
+ say STDERR ' ', '-' x 60;
+ exit;
+}
+
+sub execute {
+  my ($command, $title, $can_fail) = @_;
+  say GREEN "> $command", RESET if ($opt_debug);
+  my $out = `$command`;
+  if ($?) {
+    die " FATAL ERROR: Execution of\n> $command\n\nreturned $?\n";
+  }
+  return $out;
+
+}
+
+__END__
+#!/bin/bash
+THREADS=1
+BUILD=2
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+ 
+echo "HumanScreen V1.$BUILD
+
+ USAGE:
+$(basename $0) [options] -1 file_R1.fq [-2 file_R2.fq] -o output_basename
+
+  -t INT     Threads [$THREADS]
+";
+
+
+while getopts t:1:2:o: option
+do
+        case "${option}"
+                in
+                        t) THREADS=${OPTARG};;
+			1) R1=${OPTARG};;
+			2) R2=${OPTARG};;
+			o) OUT=${OPTARG};;
+                        ?) echo " Wrong parameter $OPTARG";;
+         esac
+done
+shift "$(($OPTIND -1))"
+
+MODE='PE'
+
+# REQUIRED PARAMETERS
+if [ -z ${R1+x} ]; 
+then
+    echo "Missing parameter: -1 File_R1.fq.gz";
+    exit 1;
+fi
+
+if [ -z ${OUT+x} ]; 
+then
+    echo "Missing parameter: -o Output_Basename";
+    exit 1;
+fi
+
+if [ -z ${R2+x} ]; 
+then
+    MODE='SE'
+fi
+
+echo "Removing human reads from $R1/$R2 to $OUT: $MODE"
+
+if [ $MODE == "SE" ]; then
+	# Check input
+	if [ ! -e "$R1" ]; then
+		echo "ERROR: File not found $R1"
+		exit 1;
+	fi
+	if [ ! -e "$R2" ]; then
+		echo "ERROR: File not found $R2"
+		exit 1;
+	fi
+	set -x
+	bbmap.sh overwrite=f ref="$DIR/hg19_main_mask_ribo_animal_allplant_allfungus.fa" path="$DIR" \
+		in="$R1" outu="${OUT}_R1.fq.gz" \
+		pigz=t unpigz=t threads=$THREADS minid=0.88 -Xmx24000m
+elif [ $MODE == "PE" ]; then
+	set -x
+	bbmap.sh overwrite=f ref="$DIR/hg19_main_mask_ribo_animal_allplant_allfungus.fa" path="$DIR" \
+		in="$R1" in2="$R2" outu="${OUT}_R1.fq.gz" outu2="${OUT}_R2.fq.gz" \
+		pigz=t unpigz=t threads=$THREADS minid=0.88 -Xmx24000m
+fi
