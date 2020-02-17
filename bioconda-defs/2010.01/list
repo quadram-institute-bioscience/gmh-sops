@@ -4,3 +4,6 @@ kraken2=2.0.7_beta	kraken2
 spades=3.13.2	spades.py
 megahit=1.2.9	megahit
 metaphlan2=2.96.1	metaphlan2.py
+virsorter=1.0.6	wrapper_phage_contigs_sorter_iPlant.pl
+r-virfinder=1.1	virfinder	*
+vcontact2=0.9.12	vcontact	*

@@ -50,7 +50,9 @@ else:
 	with open(sys.argv[1]) as f:
 		lines = f.readlines()
 		for line in lines:
-			[package, entrypoint] = line.split("\t")
+			fields = line.split("\t")
+			package = fields[0]
+			entrypoint = fields[1]
 			[package_name, package_version] = package.split('=')
 			eprint("[{}] version={};cmd={};".format(package_name, package_version, entrypoint.rstrip() ) )
 			outfile = os.path.dirname(os.path.realpath(sys.argv[1])) + '/' + package_name + '-' + package_version + '.def'

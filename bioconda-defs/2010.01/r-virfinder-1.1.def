@@ -1,0 +1,17 @@
+
+Bootstrap: docker
+
+From: continuumio/miniconda3
+
+%environment
+ PATH=/opt/conda/envs/container/bin:$PATH
+
+%post
+ echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc
+ echo "source activate container" > ~/.bashrc
+ /opt/conda/bin/conda create -n container  -c bioconda  -y  r-virfinder=1.1 
+ wget -O /opt/conda/envs/container/bin/virfinder.sh "https://gist.githubusercontent.com/telatin/8d98fd3a4fe698ba33ecfc9ab4326d1a/raw/536ff87483e8e01fdfdab893f62ece7a4e28688a/virfinder.sh"
+ chmod +x /opt/conda/envs/container/bin/virfinder.sh
+%runscript
+ exec virfinder.sh "$@"
+
