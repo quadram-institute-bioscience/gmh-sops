@@ -60,6 +60,10 @@ if (not defined $opt_skipqual) {
                   qq(--length_required $opt_minlen --qualified_quality_phred $opt_minqual ) .
                   qq(--trim_front1 $opt_trimfront1  --json "$opt_outbase.json" --html /dev/null );
 
+  if (-e "$RealBin/adapters.fa") {
+     $fastp_cmd .= qq( --adapter_fasta "$RealBin/adapters.fa" );
+  }
+
   if (defined $opt_R2) {
 	$fastp_cmd .= qq(--in2 "$opt_R2" --out2 "$opt_outbase.R2.filt.fq.gz"  --trim_front2 $opt_trimfront2);
   }
