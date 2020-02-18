@@ -7,12 +7,20 @@ use Term::ANSIColor qw(:constants);
 my $NAME     = 'HumanScreen';
 my $VERSION  = '1.03';
 
+my $DB;
+if (-d "$RealBin/hg") {
+ $DB = "$RealBin";
+} elsif (-d "$RealBin/../../../hg/" {
+ $DB = "$RealBin/../../../";
+} else {
+ die "** ERROR**\n Database not installed.\n"
+}
 my ($opt_R1, $opt_R2, $opt_outbase, $opt_skipqual, $opt_debug);
 my $opt_threads    = 1;
 my $opt_minlen     = 50;
 my $opt_mem_mb     = 24000;
 my $opt_minid      = 0.95;
-my $opt_reference  = "$RealBin/hg19_main_mask_ribo_animal_allplant_allfungus.fa";
+my $opt_reference  = "$DB/hg19_main_mask_ribo_animal_allplant_allfungus.fa";
 my $opt_trimfront1 = 0;
 my $opt_trimfront2 = 0;
 my $opt_minqual    = 20;
@@ -76,9 +84,9 @@ push(@tmp_files, "$opt_outbase.R1.filt.fq.gz", "$opt_outbase.R2.filt.fq.gz");
 
 # out=unmatched.fq outm=matched.fq ref=phix.fa k=31 hdist=1 
 my $phix_cmd  = qq(bbduk.sh threads=$opt_threads in="$opt_R1" k=31 hdist=1 hdist2=1 ) . 
-		qq( out="$opt_outbase.phi.R1.fq.gz" path="$RealBin/phi/" );
+		qq( out="$opt_outbase.phi.R1.fq.gz" path="$DB/phi/" );
 
-my $bbmap_cmd = qq(bbmap.sh path="$RealBin/hg/" in="$opt_outbase.phi.R2.fq.gz") .
+my $bbmap_cmd = qq(bbmap.sh path="$DB/hg/" in="$opt_outbase.phi.R2.fq.gz") .
                 qq( $bbmap_common  ) .
                 qq(outu="${opt_outbase}_R1.fq.gz"  -Xmx${opt_mem_mb}m );
 
@@ -87,9 +95,9 @@ push(@tmp_files, "${opt_outbase}_R1.fq.gz", "${opt_outbase}_R2.fq.gz");
 if (defined $opt_R2) {
   say STDERR YELLOW, " * Paired-end", RESET if ($opt_debug);
   $phix_cmd  = qq(bbduk.sh threads=$opt_threads in1="$opt_R1" in2="$opt_R2" k=31 hdist=1 hdist2=1 ) .
-		  qq(out1="$opt_outbase.phi.R1.fq.gz" out2="$opt_outbase.phi.R2.fq.gz" path="$RealBin/phi/" );
+		  qq(out1="$opt_outbase.phi.R1.fq.gz" out2="$opt_outbase.phi.R2.fq.gz" path="$DB/phi/" );
 
-  $bbmap_cmd = qq(bbmap.sh path="$RealBin/hg/" in="$opt_R1" in2="$opt_outbase.phi.R2.fq.gz"  ).
+  $bbmap_cmd = qq(bbmap.sh path="$DB/hg/" in="$opt_R1" in2="$opt_outbase.phi.R2.fq.gz"  ).
                 qq(outu1="${opt_outbase}_R1.fq.gz" outu2="${opt_outbase}_R2.fq.gz" ).  
 		qq($bbmap_common  -Xmx${opt_mem_mb}m );
 } else {
