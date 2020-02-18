@@ -5,7 +5,7 @@ use Getopt::Long;
 use FindBin qw($RealBin);
 use Term::ANSIColor qw(:constants);
 my $NAME     = 'HumanScreen';
-my $VERSION  = '1.01';
+my $VERSION  = '1.03';
 
 my ($opt_R1, $opt_R2, $opt_outbase, $opt_skipqual, $opt_debug);
 my $opt_threads    = 1;
@@ -27,52 +27,84 @@ my $_opt = GetOptions(
   'q|minqual=f'        => \$opt_minqual,
   'o|outbase=s'        => \$opt_outbase,
   's|skipqual'         => \$opt_skipqual,
+  'mem=i'              => \$opt_mem_mb,
   'd|debug'            => \$opt_debug,
 );
 
 usage() if ((not defined $opt_R1) or (not defined $opt_outbase));
 
+my @tmp_files = ();
+my $bbmap_common = qq(minid=0.95 maxindel=3 bwr=0.16 bw=12 quickmatch fast minhits=2 threads=$opt_threads pigz unpigz);
+my $bbduk_common = qq(); 
+
 if (not -e "$opt_R1") {
-  die "FATAL ERROR: First input file not found: $opt_R1";
 }
 
 if (defined $opt_R2 and not -e "$opt_R2") {
   die "FATAL ERROR: Second input file not found: $opt_R2";
 }
+
 # QUALITY Check
 # =================
 if (not defined $opt_skipqual) {
-
-  my $fastp_cmd = qq(fastp --in1 "$opt_R1" --in2 "$opt_R2" --out1 "$opt_R1.filt.fastq.gz" --out2 "$opt_R2.filt.fastq.gz" ) .
+  say STDERR YELLOW, " * FASTQ quality", RESET if ($opt_debug);
+  my $fastp_cmd = qq(fastp -w $opt_threads --in1 "$opt_R1" --out1 "$opt_outbase.R1.filt.fq.gz"  ) .
                   qq(--length_required $opt_minlen --qualified_quality_phred $opt_minqual ) .
-                  qq(--trim_front1 $opt_trimfront1 --trim_front2 $opt_trimfront2 --json "$opt_outbase.json" --html /dev/null );
+                  qq(--trim_front1 $opt_trimfront1  --json "$opt_outbase.json" --html /dev/null );
 
+  if (defined $opt_R2) {
+	$fastp_cmd .= qq(--in2 "$opt_R2" --out2 "$opt_outbase.R2.filt.fq.gz"  --trim_front2 $opt_trimfront2);
+  }
   execute($fastp_cmd);
 
-  die "FATAL ERROR:\nOutput of fastp is empty: <$opt_R1.tmp>\n" 
-      if (not -s "$opt_R1.filt.fastq.gz");
+  die "FATAL ERROR:\nOutput of fastp is empty: <$opt_outbase.R1.filt.fq.gz>\n" 
+      if (not -s "$opt_outbase.R1.filt.fq.gz");
 
-  $opt_R1 = "$opt_R1.filt.fastq.gz";
-  $opt_R2 = "$opt_R2.filt.fastq.gz";
+  $opt_R1 = "$opt_outbase.R1.filt.fq.gz";
+  $opt_R2 = "$opt_outbase.R2.filt.fq.gz";
 
 }  
+
+push(@tmp_files, "$opt_outbase.R1.filt.fq.gz", "$opt_outbase.R2.filt.fq.gz");
 
 
 # Mapping
 # ===================
-my $ADD_R2 = '';
+
+#minratio=0.9 maxindel=3 bwr=0.16 bw=12 quickmatch fast minhits=2 path=/global/projectb/sandbox/gaag/bbtools/hg19 pigz unpigz zl=6 qtrim=r trimq=10 untrim 
+#idtag usemodulo printunmappedcount ztd=2 kfilter=25 maxsites=1 k=14 bloomfilter $@
+
+# out=unmatched.fq outm=matched.fq ref=phix.fa k=31 hdist=1 
+my $phix_cmd  = qq(bbduk.sh threads=$opt_threads in="$opt_R1" k=31 hdist=1 hdist2=1 ) . 
+		qq( out="$opt_outbase.phi.R1.fq.gz" path="$RealBin/phi/" );
+
+my $bbmap_cmd = qq(bbmap.sh path="$RealBin/hg/" in="$opt_outbase.phi.R2.fq.gz") .
+                qq( $bbmap_common  ) .
+                qq(outu="${opt_outbase}_R1.fq.gz"  -Xmx${opt_mem_mb}m );
+
+
+push(@tmp_files, "${opt_outbase}_R1.fq.gz", "${opt_outbase}_R2.fq.gz");
 if (defined $opt_R2) {
-  $ADD_R2 = qq( in2="$opt_R2" outu2="${opt_outbase}_R2.fq.gz" );
+  say STDERR YELLOW, " * Paired-end", RESET if ($opt_debug);
+  $phix_cmd  = qq(bbduk.sh threads=$opt_threads in1="$opt_R1" in2="$opt_R2" k=31 hdist=1 hdist2=1 ) .
+		  qq(out1="$opt_outbase.phi.R1.fq.gz" out2="$opt_outbase.phi.R2.fq.gz" path="$RealBin/phi/" );
+
+  $bbmap_cmd = qq(bbmap.sh path="$RealBin/hg/" in="$opt_R1" in2="$opt_outbase.phi.R2.fq.gz"  ).
+                qq(outu1="${opt_outbase}_R1.fq.gz" outu2="${opt_outbase}_R2.fq.gz" ).  
+		qq($bbmap_common  -Xmx${opt_mem_mb}m );
+} else {
+  say STDERR YELLOW, " * Paired-end", RESET if ($opt_debug);
 }
 
 
-my $bbmap_cmd = qq(bbmap.sh overwrite=f ref="$opt_reference" path="$RealBin" in="$opt_R1" ) .
-                qq(pigz=t threads=$opt_threads minid=$opt_minid $ADD_R2) .
-                qq(outu="${opt_outbase}_R1.fq.gz"  -Xmx${opt_mem_mb}m);
-
-
-
+execute($phix_cmd);
 execute($bbmap_cmd);
+
+for my $file (@tmp_files) {
+	if (-e "$file") {
+		execute( qq(rm "$file") );
+	}
+}
 
 sub usage {
  
@@ -94,6 +126,7 @@ sub execute {
   say GREEN "> $command", RESET if ($opt_debug);
   my $out = `$command`;
   if ($?) {
+    print STDERR RED, " ****** ", RESET, "\n";
     die " FATAL ERROR: Execution of\n> $command\n\nreturned $?\n";
   }
   return $out;

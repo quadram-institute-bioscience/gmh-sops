@@ -1,0 +1,7 @@
+#!/usr/bin/env perl
+use 5.012;
+use warnings;
+
+for my $input (@ARGV)  {
+	say " - $input ", -e "$input" ? 'OK' : 'not_found';
+}

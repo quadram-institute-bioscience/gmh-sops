@@ -1,2 +1,14 @@
 #!/bin/bash
-echo "Remove_This 1.0"
+
+#https://stackoverflow.com/questions/59895/getting-the-source-directory-of-a-bash-script-from-within
+ 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+ 
+
+
+
+
+
+$DIR/nohost 2>&1 | grep ver
+echo -n ' * ' && samtools --version | grep samtools
+echo -n ' * ' && bbmap.sh -version 2>&1 |  grep -i "BBMap version"
