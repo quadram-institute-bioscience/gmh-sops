@@ -65,7 +65,7 @@ if (not defined $opt_skipqual) {
   }
 
   if (defined $opt_R2) {
-	$fastp_cmd .= qq(--in2 "$opt_R2" --out2 "$opt_outbase.R2.filt.fq.gz"  --trim_front2 $opt_trimfront2);
+  $fastp_cmd .= qq(--in2 "$opt_R2" --out2 "$opt_outbase.R2.filt.fq.gz"  --trim_front2 $opt_trimfront2);
   }
   execute($fastp_cmd);
 
@@ -88,22 +88,24 @@ push(@tmp_files, "$opt_outbase.R1.filt.fq.gz", "$opt_outbase.R2.filt.fq.gz");
 
 # out=unmatched.fq outm=matched.fq ref=phix.fa k=31 hdist=1 
 my $phix_cmd  = qq(bbduk.sh threads=$opt_threads in="$opt_R1" k=31 hdist=1 hdist2=1 ) . 
-		qq( out="$opt_outbase.phi.R1.fq.gz" path="$DB/phi/" );
+    qq( out="$opt_outbase.phi.R1.fq.gz" path="$DB/phi/" );
 
 my $bbmap_cmd = qq(bbmap.sh path="$DB/hg/" in="$opt_outbase.phi.R2.fq.gz") .
                 qq( $bbmap_common  ) .
                 qq(outu="${opt_outbase}_R1.fq.gz"  -Xmx${opt_mem_mb}m );
 
 
-push(@tmp_files, "${opt_outbase}_R1.fq.gz", "${opt_outbase}_R2.fq.gz");
+push(@tmp_files, "$opt_outbase.phi.R1.fq.gz", "$opt_outbase.phi.R2.fq.gz");
+
+
 if (defined $opt_R2) {
   say STDERR YELLOW, " * Paired-end", RESET if ($opt_debug);
   $phix_cmd  = qq(bbduk.sh threads=$opt_threads in1="$opt_R1" in2="$opt_R2" k=31 hdist=1 hdist2=1 ) .
-		  qq(out1="$opt_outbase.phi.R1.fq.gz" out2="$opt_outbase.phi.R2.fq.gz" path="$DB/phi/" );
+      qq(out1="$opt_outbase.phi.R1.fq.gz" out2="$opt_outbase.phi.R2.fq.gz" path="$DB/phi/" );
 
   $bbmap_cmd = qq(bbmap.sh path="$DB/hg/" in="$opt_R1" in2="$opt_outbase.phi.R2.fq.gz"  ).
                 qq(outu1="${opt_outbase}_R1.fq.gz" outu2="${opt_outbase}_R2.fq.gz" ).  
-		qq($bbmap_common  -Xmx${opt_mem_mb}m );
+    qq($bbmap_common  -Xmx${opt_mem_mb}m );
 } else {
   say STDERR YELLOW, " * Paired-end", RESET if ($opt_debug);
 }
@@ -113,9 +115,9 @@ execute($phix_cmd);
 execute($bbmap_cmd);
 
 for my $file (@tmp_files) {
-	if (-e "$file") {
-		execute( qq(rm "$file") );
-	}
+  if (-e "$file") {
+    execute( qq(rm "$file") );
+  }
 }
 
 sub usage {
@@ -145,73 +147,3 @@ sub execute {
 
 }
 
-__END__
-#!/bin/bash
-THREADS=1
-BUILD=2
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
- 
-echo "HumanScreen V1.$BUILD
-
- USAGE:
-$(basename $0) [options] -1 file_R1.fq [-2 file_R2.fq] -o output_basename
-
-  -t INT     Threads [$THREADS]
-";
-
-
-while getopts t:1:2:o: option
-do
-        case "${option}"
-                in
-                        t) THREADS=${OPTARG};;
-			1) R1=${OPTARG};;
-			2) R2=${OPTARG};;
-			o) OUT=${OPTARG};;
-                        ?) echo " Wrong parameter $OPTARG";;
-         esac
-done
-shift "$(($OPTIND -1))"
-
-MODE='PE'
-
-# REQUIRED PARAMETERS
-if [ -z ${R1+x} ]; 
-then
-    echo "Missing parameter: -1 File_R1.fq.gz";
-    exit 1;
-fi
-
-if [ -z ${OUT+x} ]; 
-then
-    echo "Missing parameter: -o Output_Basename";
-    exit 1;
-fi
-
-if [ -z ${R2+x} ]; 
-then
-    MODE='SE'
-fi
-
-echo "Removing human reads from $R1/$R2 to $OUT: $MODE"
-
-if [ $MODE == "SE" ]; then
-	# Check input
-	if [ ! -e "$R1" ]; then
-		echo "ERROR: File not found $R1"
-		exit 1;
-	fi
-	if [ ! -e "$R2" ]; then
-		echo "ERROR: File not found $R2"
-		exit 1;
-	fi
-	set -x
-	bbmap.sh overwrite=f ref="$DIR/hg19_main_mask_ribo_animal_allplant_allfungus.fa" path="$DIR" \
-		in="$R1" outu="${OUT}_R1.fq.gz" \
-		pigz=t unpigz=t threads=$THREADS minid=0.88 -Xmx24000m
-elif [ $MODE == "PE" ]; then
-	set -x
-	bbmap.sh overwrite=f ref="$DIR/hg19_main_mask_ribo_animal_allplant_allfungus.fa" path="$DIR" \
-		in="$R1" in2="$R2" outu="${OUT}_R1.fq.gz" outu2="${OUT}_R2.fq.gz" \
-		pigz=t unpigz=t threads=$THREADS minid=0.88 -Xmx24000m
-fi
