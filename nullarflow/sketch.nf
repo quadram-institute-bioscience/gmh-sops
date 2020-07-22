@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow
-
+//nextflow.preview.dsl=2
 version = '0.1.1'
 
 def helpMessage() {
@@ -11,15 +11,16 @@ def helpMessage() {
     Main arguments:
       --reads                       Path to input data (must be surrounded with quotes)
       --reference                   Reference genome
-      --genus
-      --species
-
+      --outdir                      Output directory 
+      --compare                     Enable multisample comparisons (default: OFF)
 
     Optional arguments:  
-      --outdir                      Output directory (default ./metagenome)
+      
       --tempdir                     Absolute PATH to the temporary directory (default ./tmp)
       --assembler                   Assembler to use. Default 'shovill' (optional: 'unicycler')
       --kraken2db                   Path to Kraken2 database
+      --genus                       Genus (can be autodetected, for labeling only)
+      --species                     Species (can be autodetected, for labeling only)
 
       -profile                      Configuration profile to use. Can use multiple (comma separated)
                                     Available: conda, singularity, test and more.
@@ -32,14 +33,14 @@ if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
 }
 
 params.readPaths = false
-
-params.genus = 'Escherichia'
-params.species = 'coli'
+params.compare = false
+params.genus = '(genus)'
+params.species = '(sp.)'
 params.reads = ""
 
 params.cpus = 6
 params.assembler = 'shovill'
-params.outdir = "nullarbor"
+params.outdir = "nullarflow"
 params.tempdir = "/tmp/"
 params.adapter_forward  = "AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
 params.adapter_reverse  = "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT"
@@ -55,25 +56,25 @@ Channel.fromPath(params.multiqc_config, checkIfExists: true).set { ch_config_for
 if (params.readPaths) {
     if (params.singleEnd) {
 
-        Channel
+        read_pairs_ch = Channel
             .from(params.readPaths)
             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-            .into { read_pairs_ch; read_pairs2_ch;  }
+            
     } else {
 
-        Channel
+        read_pairs_ch = Channel
             .from(params.readPaths)
             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-            .into { read_pairs_ch; read_pairs2_ch;  }
+            
     }
 } else {
 
-    Channel
+    read_pairs_ch = Channel
         .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nNB: Path requires at least one * wildcard!\nIf this is single-end data, please specify --singleEnd on the command line." }
-        .into { read_pairs_ch; read_pairs2_ch;  }
+        
 }
 
 
@@ -102,7 +103,7 @@ log.info """
  }
 
 
-process filter {
+process filter_reads {
     publishDir "${params.outdir}/reads", mode: "copy"
     tag "$name"
     label 'lowmem'
@@ -121,7 +122,7 @@ process filter {
     file("${name}.fastp.json") into json_ch
 
     script:
-    if( params.singleEnd )
+    if ( params.singleEnd )
         """
         fastp -w "${task.cpus}" -q "${qual}" --cut_by_quality5 \
           --cut_by_quality3 --cut_mean_quality "${trim_qual}" \
@@ -146,8 +147,6 @@ process assembly  {
     publishDir params.outdir, mode: "copy"
     tag "$name"
 
-    when:
-
     input:
     set val(name), file(reads)   from cleaned_unicycler_ch
 
@@ -155,12 +154,12 @@ process assembly  {
     set val(name), file("${name}.fa") into assembly_mlst_ch, assembly_abricate_ch,assembly_prokka_ch, quast_input_ch
 
     script:
-    if( params.assembler == 'shovill' )
+    if ( params.assembler == 'shovill' )
         """
         shovill --assembler skesa --R1 "${reads[0]}" --R2 "${reads[1]}" --outdir assembly --cpus ${task.cpus} --ram 12.0 
         mv assembly/contigs.fa ${name}.fa
         """
-    else if( params.assembler == 'unicycler' )
+    else if ( params.assembler == 'unicycler' )
         """
         unicycler -1 "${reads[0]}" -2 "${reads[1]}" --out assembly
         mv assembly/assembly.fasta ${name}.fa
@@ -210,18 +209,36 @@ process abricate {
     tag "$name"
 
     input:
-    set val(name), file('contigs.fa')   from assembly_abricate_ch
+    set val(name), file("${name}")   from assembly_abricate_ch
 
     output:
-    set val(name), file("${name}.*.tab") into abricate_ch
+    set val(name), file("${name}.*.tab") into abricate_ch 
+    file("${name}*.tab") into abricate_summary_ch
 
     script:
     """
-    abricate  --db resfinder --quiet --threads ${task.cpus} contigs.fa > ${name}.resistome.tab  
-    abricate  --db vfdb      --quiet --threads ${task.cpus} contigs.fa > ${name}.virulome.tab   
+    abricate  --db resfinder --quiet --threads ${task.cpus} ${name} > ${name}.resistome.tab  
+    abricate  --db vfdb      --quiet --threads ${task.cpus} ${name} > ${name}.virulome.tab   
     """
 }
 
+process abricate_summary {
+    tag "report"
+    publishDir "${params.outdir}", mode: "copy"
+
+    input:
+    file(files) from abricate_summary_ch.collect().ifEmpty([])
+
+    output:
+    file('virulome.tsv')
+    file('resistome.tsv')
+
+    script:
+    """
+    abricate --summary *.virulome.tab  | sed 's/.virulome.tab//'  > virulome.tsv 
+    abricate --summary *.resistome.tab | sed 's/.resistome.tab//' > resistome.tsv 
+    """
+}
 
 process prokka {
     publishDir params.outdir, mode: "copy"
@@ -233,14 +250,35 @@ process prokka {
 
     output:
     set val(name), file("prokka/*.faa") into proteins_ch
-    set val(name), file("prokka/*.gff") into annotation_ch
+    file("prokka/*.gff") into annotation_ch
     file("${name}.txt") into prokka_ch
 
     script:
     """
     # 
-    prokka `class_to_param.pl taxon.txt` --outdir prokka  --strain $name --cpus ${task.cpus} contigs.fa
+    prokka `class_to_param.pl taxon.txt` --outdir prokka  --locustag $name --strain $name --prefix $name --cpus ${task.cpus} contigs.fa
     mv prokka/*.txt ${name}.txt
+    """
+}
+
+process roary {
+    tag 'report'
+    publishDir params.outdir, mode: "copy"
+
+    input:
+    file(annotations) from annotation_ch.collect().ifEmpty([])
+
+    output:
+    file('roary.tsv')
+    file('roary.zip')
+
+    script:
+    """
+    mkdir roary
+    cd roary
+    roary -e --mafft -p ${task.cpus}  ../*.gff -o roary
+    mv roary ../roary.tsv
+    zip ../roary.zip *.*
     """
 }
 
@@ -264,7 +302,7 @@ process multiqc {
     publishDir params.outdir, mode: "copy"
 
     input:
-    file("fastp/*")     from json_ch.collect().ifEmpty([])
+    file("fastp/*")         from json_ch.collect().ifEmpty([])
     file("kraken2/*")       from kraken2_ch.collect().ifEmpty([])
     file("*.txt")           from prokka_ch.collect().ifEmpty([])
     file multiqc_config     from ch_config_for_multiqc
