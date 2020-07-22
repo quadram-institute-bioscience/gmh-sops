@@ -19,20 +19,23 @@ $top_species =~s/^\s*//;
 
 # Check top "S" species level
 my ($ratio, undef, undef, undef, undef, @classification) = split /\s+/, $top_species;
-if ($ratio >= $min_ratio) {
+if (defined $ratio and $ratio >= $min_ratio) {
     $genus = shift @classification;
     $species = shift @classification;
+    # Genus as "E." rather than "Escherichia"
+    $genus = uc( substr($genus, 0, 1) ) . '.';
 } else {
     # Check top "G" genus level, eg:
     # 83.69  206578  7936    G       1578                    Lactobacillus
-    my $top_species = `grep -w 'G' "$kraken_file"  | head -n 1`;
+    my $top_species = `grep -w 'G' "$reportFile"  | head -n 1`;
     $top_species =~s/^\s*//;
     my ($ratio, undef, undef, undef, undef, @classification) = split /\s+/, $top_species;
-    $genus = shift @classification;
-    $species;
+    if (defined $ratio and $ratio >= $min_ratio) {
+        $genus = shift @classification;
+        $genus = uc( substr($genus, 0, 1) ) . '.';
+    }
 }
 
-# Genus as "E." rather than "Escherichia"
-$genus = uc( substr($genus, 0, 1) ) . '.';
+
 
 print " --genus $genus --species $species ";

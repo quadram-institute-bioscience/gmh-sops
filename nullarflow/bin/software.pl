@@ -87,6 +87,7 @@ my $software = {
         cmd   => 'multiqc --version',
         regex => 'multiqc, version (\d+.\d+)',
         desc  => 'Report generation',
+        doi   => 'https://academic.oup.com/bioinformatics/article/32/19/3047/2196507',
         paper => 'Ewels P. et al., MultiQC: Summarize analysis results for multiple tools and samples in a single report. Bioinformatics (2015)',
         uri   => 'https://multiqc.info/',
     },
@@ -136,7 +137,7 @@ for my $tool_name ( sort keys %{ $software } ) {
 sub run {
     my ($cmd, $regex, $canfail) = @_;
     my $out = `$cmd 2>&1`;
-    if ( $? and  $canfail != 1 ) {
+    if ( $? and defined $canfail) {
         die "Error executing '$cmd'\n";
     }
 
