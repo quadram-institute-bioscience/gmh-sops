@@ -120,6 +120,7 @@ my $software = {
         regex => '(\d+.\d+)',
         desc  => 'FASTA alignment to SNP distance matrix',
         uri   => 'https://github.com/tseemann/snp-dists',
+        optional => 1,
     },
     'quast' => {
         cmd   => 'quast --version',

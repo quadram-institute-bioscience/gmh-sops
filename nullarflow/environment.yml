@@ -1,9 +1,8 @@
 name: nullarbor
 channels:
-  - defaults
-  - conda-forge
   - bioconda
-  - r
+  - conda-forge
+  - defaults
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=0_gnu
@@ -21,10 +20,10 @@ dependencies:
   - brotlipy=0.7.0=py37h7b6447c_1000
   - bwa=0.7.17=hed695b0_7
   - bzip2=1.0.8=h516909a_2
-  - ca-certificates=2020.6.24=0
+  - ca-certificates=2020.6.20=hecda079_0
   - cairo=1.16.0=hcf35c78_1003
   - cd-hit=4.8.1=h8b12597_3
-  - certifi=2020.6.20=py37_0
+  - certifi=2020.6.20=py37hc8dfbb8_0
   - cffi=1.14.0=py37h2e261b9_0
   - chardet=3.0.4=py37_1003
   - circos=0.69.8=0
@@ -119,7 +118,7 @@ dependencies:
   - numpy=1.19.0=py37h8960a57_0
   - openjdk=11.0.1=hacce0ff_1020
   - openmp=8.0.1=0
-  - openssl=1.1.1g=h7b6447c_0
+  - openssl=1.1.1g=h516909a_0
   - paml=4.9=h516909a_5
   - pango=1.42.4=h7062337_4
   - parallel=20200522=0
@@ -392,6 +391,7 @@ dependencies:
   - six=1.15.0=pyh9f0ad1d_0
   - skesa=2.3.0=he1c1bb9_2
   - snippy=4.3.6=0
+  - snp-dists=0.7.0=hed695b0_0
   - snp-sites=2.5.1=hed695b0_0
   - snpeff=4.5covid19=1
   - spades=3.14.0=h2d02072_0
@@ -436,5 +436,4 @@ dependencies:
   - yaml=0.2.5=h7b6447c_0
   - zlib=1.2.11=h516909a_1006
   - zstd=1.4.4=h6597ccf_3
-prefix: /home/ubuntu/miniconda3/envs/nullarbor
-
+prefix: /data/miniconda3/envs/nullarbor

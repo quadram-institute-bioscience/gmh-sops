@@ -41,5 +41,9 @@ report_section_order:
     Samtools:
         order: -1100
     software_versions:
+        order: 2000
+    resistome:
         order: -2000
+    virulome:
+        order: -2200
 
