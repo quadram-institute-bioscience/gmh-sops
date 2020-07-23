@@ -1,6 +1,11 @@
 #!/usr/bin/env nextflow
 //nextflow.preview.dsl=2
-version = '0.1.1'
+version = '0.1.2'
+
+/*
+ HISTORY
+ 0.1.2 -- Abricate summary MQC
+*/
 
 def helpMessage() {
 
@@ -230,13 +235,13 @@ process abricate_summary {
     file(files) from abricate_summary_ch.collect().ifEmpty([])
 
     output:
-    file('virulome.tsv')
-    file('resistome.tsv')
+    file('virulome_mqc.txt')  into virulome_mqc
+    file('resistome_mqc.txt') into resistome_mqc
 
     script:
     """
-    abricate --summary *.virulome.tab  | sed 's/.virulome.tab//'  > virulome.tsv 
-    abricate --summary *.resistome.tab | sed 's/.resistome.tab//' > resistome.tsv 
+    abricate --summary *.virulome.tab  | sed 's/.virulome.tab//'  > virulome_mqc.txt 
+    abricate --summary *.resistome.tab | sed 's/.resistome.tab//' > resistome_mqc.txt 
     """
 }
 
@@ -306,6 +311,8 @@ process multiqc {
     file("kraken2/*")       from kraken2_ch.collect().ifEmpty([])
     file("*.txt")           from prokka_ch.collect().ifEmpty([])
     file multiqc_config     from ch_config_for_multiqc
+    file('virulome_mqc.tsv')  from virulome_mqc
+    file('resistome_mqc.tsv') from resistome_mqc
     file('report.tsv')      from quast_qc_ch
     file('software_versions_mqc.html') from versions_multiqc_ch
 

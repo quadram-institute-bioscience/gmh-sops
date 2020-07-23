@@ -5,23 +5,35 @@ use warnings;
 use Getopt::Long;
 use File::Basename;
 use Data::Dumper;
-
-my $opt_html = 'versions_mqc.html';
+my $VERSION = '1.0.2';
+my ($opt_version, $opt_help);
+my @opt_dirs  = ();
+my @opt_files = ();
+my $opt_html  = 'versions_mqc.html';
 GetOptions(
   'html=s'    => \$opt_html,
+  'version'   => \$opt_version,
+  'help'      => \$opt_help,
+  'd|dir=s'   => \@opt_dirs,
+  'f|file=s'  => \@opt_files,
+
 );
+
+version() if ($opt_help or $opt_version);
+
 open(my $HTML, '>', "$opt_html") || die "Unable to write to $opt_html\n";
 
+## HARDCODED DATABASES
+## =========================
 my $databases = {
     'pubmlst' => {
         desc  => 'PubMLST website (https://pubmlst.org/) sited at the University of Oxford.',
         uri   => 'https://pubmlst.org/',
-        paper => ' Jolley & Maiden 2010, BMC Bioinformatics, 11:595',
+        paper => 'Jolley & Maiden (2010)',
     },
     'resfinder' => {
         desc => 'ResFinder database',
         uri  => 'doi:10.1093/jac/dks261',
-
     },
     'VFDB' => {
         desc => 'VFDB database',
@@ -29,7 +41,19 @@ my $databases = {
     }
 };
 
+
+## HARDCODED SOFTWARE TOOLS
+## =========================
 my $software = {
+    'mock_software' => {
+        desc     => 'software description',
+        cmd      => 'not_existing --version',
+        regex    => '(\d+)',
+        paper    => 'Author N (Year)',
+        doi      => 'https://doi.org/',
+        uri      => 'https://github.com/author/tool',
+        optional => 1,
+    },
     'roary' => {
         desc     => 'pangenome detection',
         cmd      => 'roary --version 2>/dev/null',
@@ -108,15 +132,18 @@ my $software = {
     
 };
 
-say ${HTML} qq(
-<h1>GMH Nullarflow</h1>
-<p class="lead">List of used software and links to their homepage or publication</p>
-<dl class=dl-horizontal>);
+my $html_tools = '';
+my $html_db    = '';
 
 
+
+
+say "# Software";
 for my $tool_name ( sort keys %{ $software } ) {
     my $tool = $software->{$tool_name};
-    my $version = run($tool->{cmd}, $tool->{regex});
+
+
+    my $version = cmd_regex($tool->{cmd}, $tool->{regex}, $tool->{optional});
     say "$tool_name: $version";
 
     my $paper = '';
@@ -127,22 +154,59 @@ for my $tool_name ( sort keys %{ $software } ) {
     }
     $tool_name = qq(<a href="$tool->{uri}">$tool_name</a>) if ($tool->{uri});
 
-    say ${HTML}  qq(<dt>
+    $html_tools .= qq(<dt>
     <strong>$tool_name</strong> version $version</dt>
     <dd>$desc  $paper
     </dd>);
  
 }
 
-sub run {
+say "# Databases";
+for my $db_name ( sort keys %{ $databases }) {
+    my $db = $databases->{$db_name};
+    say "$db_name: $db->{uri}";
+    $html_db .= qq(<dt>
+    <strong><a href="$db->{uri}">$db_name</a></dt>
+    <dd>$db->{desc}</dd>);
+}
+
+say ${HTML} qq(
+<h1>GMH Nullarflow</h1>
+<p class="lead">List of used software and links to their homepage or publication</p>
+<dl class=dl-horizontal>
+$html_tools
+</dl>
+<p class="lead">List of used databases</p>
+<dl class=dl-horizontal>
+$html_db
+</dl>
+);
+
+
+sub cmd_regex {
     my ($cmd, $regex, $canfail) = @_;
     my $out = `$cmd 2>&1`;
-    if ( $? and defined $canfail) {
-        die "Error executing '$cmd'\n";
+    if ( $?  ) {
+        if ( not defined $canfail) {
+            die "FATAL ERROR: executing [$canfail]:\n$cmd\n";
+        } else {
+            return 'not_found';
+        }
     }
 
+    
     if ($out =~/$regex/) {
         return $1;
     }
     return "unknown";
+}
+
+sub version {
+    say STDERR<<END;
+  software.pl $VERSION
+  -------------------------------------------------------
+  Utility program to check for programs and versions.
+  To be used with NextFlow pipeline.
+END
+exit;
 }
