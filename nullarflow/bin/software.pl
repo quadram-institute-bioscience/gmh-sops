@@ -137,7 +137,8 @@ my $html_db    = '';
 
 
 
-
+my $errors = 0;
+my @missing = ();
 say "# Software";
 for my $tool_name ( sort keys %{ $software } ) {
     my $tool = $software->{$tool_name};
@@ -146,6 +147,10 @@ for my $tool_name ( sort keys %{ $software } ) {
     my $version = cmd_regex($tool->{cmd}, $tool->{regex}, $tool->{optional});
     say "$tool_name: $version";
 
+    if ($version eq 'error') {
+        $errors++;
+        push(@missing, $tool_name);
+    }
     my $paper = '';
     my $desc  = $tool->{desc} // '...';
     if ($tool->{doi}) {
@@ -182,15 +187,20 @@ $html_db
 </dl>
 );
 
+if ($errors) {
+    say "------------";
+    say "$errors programs not found: ", join(', ', @missing);
+    exit 1;
+}
 
 sub cmd_regex {
     my ($cmd, $regex, $canfail) = @_;
     my $out = `$cmd 2>&1`;
     if ( $?  ) {
         if ( not defined $canfail) {
-            die "FATAL ERROR: executing [$canfail]:\n$cmd\n";
+            return 'error';
         } else {
-            return 'not_found';
+            return 'warning: not_found';
         }
     }
 
