@@ -284,7 +284,7 @@ process roary {
     roary -e --mafft -p ${task.cpus}  ../*.gff -o roary
     mv roary ../roary.tsv
     
-    if [ $(command -v tar) ]; then
+    if [ \$(command -v tar) ]; then
         tar cvfz ../roary.tar.gz *.*
     fi
     """
