@@ -1,3 +1,5 @@
 # MisoFlow
 
-[![MisoFlow logo](../docs/miso_banner_small.png)](README.md)
+[![MisoFlow logo](../docs/miso_banner.png)](README.md)
+
+A pipeline for analysis of bacterial isolates
