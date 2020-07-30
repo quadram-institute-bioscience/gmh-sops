@@ -1,4 +1,4 @@
-# MisoFlow
+# MagentaFlow
 
 [![MisoFlow logo](../docs/magenta_banner.png)](https://github.com/quadram-institute-bioscience/gmh-sops/wiki/MagentaFlow)
 
