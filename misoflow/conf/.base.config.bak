@@ -1,0 +1,57 @@
+/*
+ * -------------------------------------------------
+ *  nf-core/mag Nextflow base config file
+ * -------------------------------------------------
+ * A 'blank slate' config file, appropriate for general
+ * use on most high performace compute environments.
+ * Assumes that all software is installed and available
+ * on the PATH. Runs in `local` mode - all jobs will be
+ * run on the logged in environment.
+ */
+
+process {
+
+  cpus = { check_max( 3 * task.attempt, 'cpus' ) }
+  memory = { check_max( 12.GB * task.attempt, 'memory' ) }
+  time = { check_max( 60.h * task.attempt, 'time' ) }
+
+  errorStrategy = { task.exitStatus in [143,137,104,134,139] ? 'retry' : 'finish' }
+  maxRetries = 1
+  maxErrors = '-1'
+
+
+
+  withName: assembly {
+    cpus = { check_max (8 * task.attempt, 'cpus' ) }
+    memory = { check_max (20.GB * task.attempt, 'memory' ) }
+<<<<<<< HEAD:nullarflow/conf/.base.config~
+    time = { check_max (48.h * task.attempt, 'time' ) }
+=======
+    time = { check_max (72.h * task.attempt, 'time' ) }
+>>>>>>> 90d1e789e1fa68d750c35522de72d13e4b566c5e:nullarflow/conf/base.config
+  }
+  withName: roary {
+    cpus = { check_max (8 * task.attempt, 'cpus' ) }
+    memory = { check_max (20.GB * task.attempt, 'memory' ) }
+<<<<<<< HEAD:nullarflow/conf/.base.config~
+    time = { check_max (60.h * task.attempt, 'time' ) }
+  }
+  withName: prokka {
+    cpus = { check_max (8 * task.attempt, 'cpus' ) }
+=======
+    time = { check_max (80.h * task.attempt, 'time' ) }
+  }
+  withName: prokka {
+    cpus = { check_max (16 * task.attempt, 'cpus' ) }
+    time = { check_max (80.h * task.attempt, 'time' ) }
+>>>>>>> 90d1e789e1fa68d750c35522de72d13e4b566c5e:nullarflow/conf/base.config
+  }
+}
+
+params {
+  // Defaults only, expecting to be overwritten
+  max_memory = 128.GB
+  max_cpus = 16
+  max_time = 240.h
+  igenomes_base = 's3://ngi-igenomes/igenomes/'
+}
