@@ -1,3 +1,4 @@
 *.simg
 hg19_main_mask_ribo_animal_allplant_allfungus.fa
 ref/
+.DS_Store test_input
