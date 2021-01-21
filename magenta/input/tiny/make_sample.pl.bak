@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+use 5.012;
+use warnings;
+use BioX::Seq::Stream;
+
+my ($recipe_file, $source_dir) = @ARGV;
+die "Missing arguments: <recipe-file> <source-dir>\n" unless (-d "$source_dir");
+
+open(my $I, '<', "$recipe_file") || die " Unable to read $recipe_file.\n";
+
+while (my $line = readline($I) ) {
+	chomp($line);
+	next if ($line =~/^#/);
+	my ($genome, $coverage, $from, $to) = split /\t/, $line;
+	die "Wrong input format: expecting 4 columns in $recipe_file\n" unless ($to);
+	my $chromosome = get_chr($genome);
+}
+sub get_chr {
+	my ($genome);
+	my @files = <"$source_dir/*.fna">;
+	die unless $files[0];
+}

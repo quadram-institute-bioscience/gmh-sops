@@ -1,0 +1,62 @@
+{
+  "binaries": {
+    "Fastp": {
+      "binary": "fastp",
+      "stderr": "fastp: an ultra-fast all-in-one FASTQ preprocessor",
+      "exitcode": null,
+      "stdout": null,
+      "version": "version (\\d+\\.\\d+\\.?\\d*)"
+    },
+    "Zip": {
+      "params": ["-h"],
+      "binary": "zip",
+      "stdout": "Copyright",
+      "version": "Zip (\\d+\\.\\d+\\.?\\d*)"
+    },
+    "Samtools": {
+      "binary": "samtools",
+      "params": ["--version"],
+      "version": "samtools (\\d+\\.\\d+\\.?\\d*)"
+    },
+    "MegaHit": {
+      "binary": "megahit",
+      "params": ["--version"],
+      "version": "MEGAHIT v(\\d+\\.\\d+\\.?\\d*)"
+    },
+    "Humann": {
+      "binary": "humann",
+      "params": ["--version"],
+      "version": "humann v(\\d+\\.\\d+\\S*)"
+    },
+    "Kraken2": {
+      "binary": "kraken2",
+      "params": ["--version"],
+      "version": "version (\\d+\\.\\d+\\.?\\d*)"
+    },
+    "MaxBin": {
+      "binary": "run_MaxBin.pl",
+      "params": ["-version"],
+      "version": "MaxBin (\\d+\\.\\d+\\.?\\d*)"
+    },
+    "MetaBat2": {
+      "binary": "metabat2",
+      "version": "version (\\S+)"
+    },
+    "neg-control": {
+      "binary": "Negative-Control-Dummy-Package",
+      "optional": true,
+      "params": ["--version"],
+      "version": "No!"
+    }
+  },
+  "files": {
+    "poscontrol": {
+      "path": "/dev/null",
+      "optional": true
+    },
+    "negcontrol": {
+      "path": "/dev/404.file",
+      "optional": true
+    }
+  }
+}
