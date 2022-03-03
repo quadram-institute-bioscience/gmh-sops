@@ -1,0 +1,185 @@
+---
+title: "Pathways abundance"
+author: "Sumeet Tiwari"
+date: "29/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Visualization of the top 10 pathways and gene families abundant in the experiment consist of 5 ME/CFS patients and 5 matched controls.Each participant was sequenced “all” microbes and then a cell sorter was used to separate antibody-positive microbes (“IgG+”) from antibody-negative microbes (“IgG-”).
+
+Here we plotted the top 10 pathways abundance in the following comparisons:
+
+* “all” microbes from ME/CFS patients compared to “all” microbes from matched controls
+* “IgG+” microbes vs “IgG-“ microbes in ME/CFS patients
+* “IgG+” microbes vs “IgG-“ microbes in controls
+* Patient “IgG+” microbes to control “IgG+” microbes
+
+**Note:** For each comparison the top 10 pathways are re-estimated.
+
+## R Libraries
+
+```{r libraries}
+library('ggplot2')
+library('tidyr')
+library('tidyverse')
+#setwd("/Users/tiwari/Desktop/Project/gmhscripts/tasks/BSUP-733/plots/")
+```
+
+**Top 10 pathways in 'all' microbes**
+
+Plot showing the top 10 pathways found in "all" microbes in patient vs corresponding controls.
+
+```{r top10paA}
+paA_rel=read.csv("../inputs/pathways_analysis/paA_patient_control-rel.csv",header = TRUE)
+colnames(paA_rel)[1]<-"samples"
+paA_rel_sort=paA_rel[order(paA_rel$pair,paA_rel$cfs),]
+paA_rel_sort=subset(paA_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cell.population))
+paA_rel_sort$samples <- factor(paA_rel_sort$samples, levels = paA_rel_sort$samples)
+paA=paA_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cfs",value="cfs_value",cfs) %>%
+  gather(key = "pathways", value = "abundance",colnames(paA_rel_sort)[4]:colnames(paA_rel_sort)[ncol(paA_rel_sort)],factor_key = TRUE)
+paA$cfs_value=paA$cfs_value %>%str_replace_all("N", "Control") %>%str_replace_all("Y","Paitient")
+paA_mod=paA%>%separate(pathways, into=c(NA, "pathways",NA), sep="\\.\\.")
+paA_mod$abundance=round(paA_mod$abundance*100,2)
+```
+
+**Plot**
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(paA_mod, aes(y=pathways, x=samples))+
+  geom_point(aes(size=abundance,fill=cfs_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 pathways in 'all' microbes in Pateint/Control")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+**Top 10 pathways in Ig+ VS Ig- microbes in patients**
+
+Plot showing the top 10 pathways found `Ig+` vs `Ig-` microbes in patients.
+
+```{r top10papN_patient-rel}
+paPNp_rel=read.csv("../inputs/pathways_analysis/top10paPN_patient-rel.csv",header = TRUE)
+colnames(paPNp_rel)[1]<-"samples"
+paPNp_rel_sort=paPNp_rel[order(paPNp_rel$pair,paPNp_rel$cell.population),]
+paPNp_rel_sort=subset(paPNp_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cfs))
+paPNp_rel_sort$samples <- factor(paPNp_rel_sort$samples, levels = paPNp_rel_sort$samples)
+paPNp=paPNp_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cellpop",value="cellpop_value",cell.population) %>%
+  gather(key = "pathways", value = "abundance",colnames(paPNp_rel_sort)[4]:colnames(paPNp_rel_sort)[ncol(paPNp_rel_sort)],factor_key = TRUE)
+paPNp$cellpop_value=paPNp$cellpop_value %>%str_replace_all("N", "Ig-") %>%str_replace_all("P","Ig+")
+paPNp_mod=paPNp%>%separate(pathways, into=c(NA, "pathways",NA), sep="\\.\\.")
+paPNp_mod$abundance=round(paPNp_mod$abundance*100,2)
+```
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(paPNp_mod, aes(y=pathways, x=samples))+
+  geom_point(aes(size=abundance,fill=cellpop_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="Sorted fraction")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 pathways in 'Ig+/Ig-' microbes in Pateint")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+**Top 10 pathways in `Ig+` vs `Ig-` microbes in control**
+
+Plot showing the top 10 gene families found `Ig+` vs `Ig-` microbes in control.
+
+```{r top10pa_PN_control-rel}
+paPNc_rel=read.csv("../inputs/pathways_analysis/top10paPN_control-rel.csv",header = TRUE)
+colnames(paPNc_rel)[1]<-"samples"
+paPNc_rel_sort=paPNc_rel[order(paPNc_rel$pair,paPNc_rel$cell.population),]
+paPNc_rel_sort=subset(paPNc_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cfs))
+paPNc_rel_sort$samples <- factor(paPNc_rel_sort$samples, levels = paPNc_rel_sort$samples)
+paPNc=paPNc_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cellpop",value="cellpop_value",cell.population) %>%
+  gather(key = "pathways", value = "abundance",colnames(paPNc_rel_sort)[4]:colnames(paPNc_rel_sort)[ncol(paPNc_rel_sort)],factor_key = TRUE)
+paPNc$cellpop_value=paPNc$cellpop_value %>%str_replace_all("N", "Ig-") %>%str_replace_all("P","Ig+")
+paPNc_mod=paPNc%>%separate(pathways, into=c(NA, "pathways",NA), sep="\\.\\.")
+paPNc_mod$abundance=round(paPNc_mod$abundance*100,2)
+```
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(paPNc_mod, aes(y=pathways, x=samples))+
+  geom_point(aes(size=abundance,fill=cellpop_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="Sorted fraction")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 pathways in 'Ig+/Ig-' microbes in Control")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+**Top 10 pathways in `Ig+` microbes in Patient and control**
+
+```{r top10pa_P_patient_control-rel}
+paP_pateint_control_rel=read.csv("../inputs/pathways_analysis/top10pa_P_patient_control-rel.csv",header = TRUE)
+colnames(paP_pateint_control_rel)[1]<-"samples"
+paP_pateint_control_rel_sort=paP_pateint_control_rel[order(paP_pateint_control_rel$pair,paP_pateint_control_rel$cfs),]
+paP_pateint_control_rel_sort=subset(paP_pateint_control_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cell.population))
+paP_pateint_control_rel_sort$samples <- factor(paP_pateint_control_rel_sort$samples, levels = paP_pateint_control_rel_sort$samples)
+paP_pateint_control=paP_pateint_control_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cfs",value="cfs_value",cfs) %>%
+  gather(key = "pathways", value = "abundance",colnames(paP_pateint_control_rel_sort)[4]:colnames(paP_pateint_control_rel_sort)[ncol(paP_pateint_control_rel_sort)],factor_key = TRUE)
+paP_pateint_control$cfs_value=paP_pateint_control$cfs_value %>%str_replace_all("Y", "Patient") %>%str_replace_all("N","Control")
+paP_pateint_control_mod=paP_pateint_control%>%separate(pathways, into=c(NA, "pathways",NA), sep="\\.\\.")
+paP_pateint_control_mod$abundance=round(paP_pateint_control_mod$abundance*100,2)
+```
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(paP_pateint_control_mod, aes(y=pathways, x=samples))+
+  geom_point(aes(size=abundance,fill=cfs_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 pathways in 'Ig+' microbes in Control/Patient")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,126 @@
+---
+title: "QC and top 10 genefamilies and pathways"
+author: "Sumeet Tiwari"
+date: "25/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Visualization of the top 10 pathways and gene families abundant in the experiment consist of 5 ME/CFS patients and 5 matched controls.Each participant was sequenced “all” microbes and then a cell sorter was used to separate antibody-positive microbes (“IgG+”) from antibody-negative microbes (“IgG-”).
+
+Here we plotted the QC plots, top 10 genefamilies and pathways across the experiment.
+
+## R Libraries
+
+```{r libraries}
+library('ggplot2')
+library('tidyr')
+library('tidyverse')
+#setwd("/Users/tiwari/Desktop/Project/gmhscripts/tasks/BSUP-733/plots/")
+```
+
+## QC plot:
+Plot showing the reads mapped to genefamilies/pathways vs unmapped reads.
+Note: The mapped reads were estimated by subtracting the "UNMAPPED" reads from the total number of reads in each sample.
+```{r qc_plot, fig.width=8}
+qc_file=read.csv("../inputs/QC_Abundance/qc_plot.csv",header=TRUE)
+
+qc_file=subset(qc_file, select=-c(Total.reads))
+
+gf_qc=qc_file%>%
+  gather(key = "labels", value = "n_reads",colnames(qc_file)[2]:colnames(qc_file)[ncol(qc_file)],factor_key = TRUE)
+
+ggplot(gf_qc, aes(fill=labels, y=n_reads, x=Sample)) + 
+    geom_bar(position="stack", stat="identity")+
+    labs(x="Samples", y="# reads",fill="Categories")+
+  ggtitle(" # reads mapped to genefamilies/Pathways Vs Unmapped reads")+
+  theme(
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 9),
+        legend.title = element_text(size = 7, face = "bold"),
+      )
+```
+
+## Top 10 genefamilies
+The prevalence of top 10 gene families among whole experiment.
+
+```{r top10gf-rel.csv}
+gf_rel=read.csv("../inputs/QC_Abundance/top10gf-rel.csv",header = TRUE)
+colnames(gf_rel)[1]<-"samples"
+gf_rel_sort=gf_rel[order(gf_rel$pair,gf_rel$cfs),]
+gf_rel_sort=subset(gf_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone),samples!="NEG")
+gf_rel_sort$samples <- factor(gf_rel_sort$samples, levels = gf_rel_sort$samples)
+gf=gf_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cfs",value="cfs_value",cfs) %>%
+  gather(key="population",value="population_value",cell.population) %>%
+  gather(key = "genefamilies", value = "abundance",colnames(gf_rel_sort)[5]:colnames(gf_rel_sort)[ncol(gf_rel_sort)],factor_key = TRUE)
+gf$population_value=gf$population_value %>%str_replace_all("A", "all") %>%str_replace_all("N","Ig-")%>%str_replace_all("P","Ig+")
+gf$abundance=round(gf$abundance*100,2)
+
+```
+
+**Bubble plot indicating the relative abundance of top 10 genefamilies**
+
+```{r, gf_plot, fig.height = 6, fig.align="left", fig.width=10}
+ggplot(gf, aes(y=genefamilies, x=samples))+
+  geom_point(aes(size=abundance,fill=population_value),alpha=0.8,shape=21)+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="Sorted fraction")+
+  scale_fill_manual(values = c('#F3950D','#116530','#98BAE7'),labels=waiver())+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 genefamilies in the experiment")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = c(2,4,6)) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 9),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+## Top 10 pathways
+The prevalence of top 10 pathways among whole experiment.
+
+```{r top10pa-rel.csv}
+pa_rel=read.csv("../inputs/QC_Abundance/top10pa-rel.csv",header = TRUE)
+colnames(pa_rel)[1]<-"samples"
+pa_rel_sort=pa_rel[order(pa_rel$pair,pa_rel$cfs),]
+pa_rel_sort=subset(pa_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone),samples!="NEG")
+pa_rel_sort$samples <- factor(pa_rel_sort$samples, levels = pa_rel_sort$samples)
+pa=pa_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cfs",value="cfs_value",cfs) %>%
+  gather(key="population",value="population_value",cell.population) %>%
+  gather(key = "pathways", value = "abundance",colnames(pa_rel_sort)[5]:colnames(pa_rel_sort)[ncol(pa_rel_sort)],factor_key = TRUE)
+pa$population_value=pa$population_value %>%str_replace_all("A", "all") %>%str_replace_all("N","Ig-")%>%str_replace_all("P","Ig+")
+pa_mod=pa%>%separate(pathways, into=c(NA, "pathways",NA), sep="\\.\\.")
+pa_mod$abundance=round(pa_mod$abundance*100,2)
+```
+**Bubble plot indicating the relative abundance of top 10 pathways**
+```{r, pa_plot, fig.height = 6, fig.align="left", fig.width=11}
+ggplot(pa_mod, aes(y=pathways, x=samples))+
+  geom_point(aes(size=abundance,fill=population_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('#F3950D','#116530','#98BAE7'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="Sorted fraction")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 pathways in the experiment")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

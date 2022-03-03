@@ -1,0 +1,181 @@
+---
+title: "GeneFamilies Abundance"
+author: "Sumeet Tiwari"
+date: "07/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Visualization of the top 10 pathways and gene families abundant in the experiment consist of 5 ME/CFS patients and 5 matched controls.Each participant was sequenced “all” microbes and then a cell sorter was used to separate antibody-positive microbes (“IgG+”) from antibody-negative microbes (“IgG-”).
+
+Here we plotted the genefamilies abundance in the following comparisons:
+
+* “all” microbes from ME/CFS patients compared to “all” microbes from matched controls
+* “IgG+” microbes vs “IgG-“ microbes in ME/CFS patients
+* “IgG+” microbes vs “IgG-“ microbes in controls
+* Patient “IgG+” microbes to control “IgG+” microbes
+
+**Note:** For each comparison the top 10 genfamilies are re-estimated.
+
+## R Libraries
+
+```{r libraries}
+library('ggplot2')
+library('tidyr')
+library('tidyverse')
+#setwd("/Users/tiwari/Desktop/Project/gmhscripts/tasks/BSUP-733/plots/")
+```
+
+**Top 10 gene families in 'all' microbes**
+
+Plot showing the top 10 gene families found in "all" microbes in patient vs corresponding controls.
+
+```{r top10gfA}
+gfA_rel=read.csv("../inputs/genefamilies_analysis/top10gf_A-rel.csv",header = TRUE)
+colnames(gfA_rel)[1]<-"samples"
+gfA_rel_sort=gfA_rel[order(gfA_rel$pair,gfA_rel$cfs),]
+gfA_rel_sort=subset(gfA_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cell.population))
+gfA_rel_sort$samples <- factor(gfA_rel_sort$samples, levels = gfA_rel_sort$samples)
+gfA=gfA_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cfs",value="cfs_value",cfs) %>%
+  gather(key = "genefamilies", value = "abundance",colnames(gfA_rel_sort)[4]:colnames(gfA_rel_sort)[ncol(gfA_rel_sort)],factor_key = TRUE)
+gfA$cfs_value=gfA$cfs_value %>%str_replace_all("N", "Control") %>%str_replace_all("Y","Paitient")
+gfA$abundance=round(gfA$abundance*100,2)
+```
+
+**Plot**
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(gfA, aes(y=genefamilies, x=samples))+
+  geom_point(aes(size=abundance,fill=cfs_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 gene families in 'all' microbes in Pateint vs Control")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+**Top 10 gene families in Ig+ VS Ig- microbes in patients**
+
+Plot showing the top 10 gene families found `Ig+` vs `Ig-` microbes in patients.
+
+```{r top10gf_pN_patient-rel}
+gfPNp_rel=read.csv("../inputs/genefamilies_analysis/top10gf_PN_patient-rel.csv",header = TRUE)
+colnames(gfPNp_rel)[1]<-"samples"
+gfPNp_rel_sort=gfPNp_rel[order(gfPNp_rel$pair,gfPNp_rel$cell.population),]
+gfPNp_rel_sort=subset(gfPNp_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cfs))
+gfPNp_rel_sort$samples <- factor(gfPNp_rel_sort$samples, levels = gfPNp_rel_sort$samples)
+gfPNp=gfPNp_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cellpop",value="cellpop_value",cell.population) %>%
+  gather(key = "genefamilies", value = "abundance",colnames(gfPNp_rel_sort)[4]:colnames(gfPNp_rel_sort)[ncol(gfPNp_rel_sort)],factor_key = TRUE)
+gfPNp$cellpop_value=gfPNp$cellpop_value %>%str_replace_all("N", "Ig-") %>%str_replace_all("P","Ig+")
+gfPNp$abundance=round(gfPNp$abundance*100,2)
+```
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(gfPNp, aes(y=genefamilies, x=samples))+
+  geom_point(aes(size=abundance,fill=cellpop_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="Sorted fraction")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 gene families in 'Ig+/Ig-' microbes in Pateint")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+**Top 10 gene families in `Ig+` vs `Ig-` microbes in control**
+
+Plot showing the top 10 gene families found `Ig+` vs `Ig-` microbes in control.
+
+```{r top10gf_PN_control-rel}
+gfPNc_rel=read.csv("../inputs/genefamilies_analysis/top10gf_PN_control-rel.csv",header = TRUE)
+colnames(gfPNc_rel)[1]<-"samples"
+gfPNc_rel_sort=gfPNc_rel[order(gfPNc_rel$pair,gfPNc_rel$cell.population),]
+gfPNc_rel_sort=subset(gfPNc_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cfs))
+gfPNc_rel_sort$samples <- factor(gfPNc_rel_sort$samples, levels = gfPNc_rel_sort$samples)
+gfPNc=gfPNc_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cellpop",value="cellpop_value",cell.population) %>%
+  gather(key = "genefamilies", value = "abundance",colnames(gfPNc_rel_sort)[4]:colnames(gfPNc_rel_sort)[ncol(gfPNc_rel_sort)],factor_key = TRUE)
+gfPNc$cellpop_value=gfPNc$cellpop_value %>%str_replace_all("N", "Ig-") %>%str_replace_all("P","Ig+")
+gfPNc$abundance=round(gfPNc$abundance*100,2)
+```
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(gfPNc, aes(y=genefamilies, x=samples))+
+  geom_point(aes(size=abundance,fill=cellpop_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="Sorted fraction")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 gene families in 'Ig+/Ig-' microbes in Control")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+**Top 10 gene families in `Ig+` microbes in Patient and control**
+
+```{r top10gf_P_patient_control-rel}
+gfP_pateint_control_rel=read.csv("../inputs/genefamilies_analysis/top10gf_P_patient_control-rel.csv",header = TRUE)
+colnames(gfP_pateint_control_rel)[1]<-"samples"
+gfP_pateint_control_rel_sort=gfP_pateint_control_rel[order(gfP_pateint_control_rel$pair,gfP_pateint_control_rel$cfs),]
+gfP_pateint_control_rel_sort=subset(gfP_pateint_control_rel_sort, select=-c(Others,Cell.number,gender,recruitment.zone,cell.population))
+gfP_pateint_control_rel_sort$samples <- factor(gfP_pateint_control_rel_sort$samples, levels = gfP_pateint_control_rel_sort$samples)
+gfP_pateint_control=gfP_pateint_control_rel_sort %>% 
+  gather(key = "pair",value = "pair_value",pair) %>%
+  gather(key="cfs",value="cfs_value",cfs) %>%
+  gather(key = "genefamilies", value = "abundance",colnames(gfP_pateint_control_rel_sort)[4]:colnames(gfP_pateint_control_rel_sort)[ncol(gfP_pateint_control_rel_sort)],factor_key = TRUE)
+gfP_pateint_control$cfs_value=gfP_pateint_control$cfs_value %>%str_replace_all("Y", "Patient") %>%str_replace_all("N","Control")
+gfP_pateint_control$abundance=round(gfP_pateint_control$abundance*100,2)
+```
+
+```{r fig.height = 6, fig.align="left", fig.width=8}
+ggplot(gfP_pateint_control, aes(y=genefamilies, x=samples))+
+  geom_point(aes(size=abundance,fill=cfs_value),alpha=0.8,shape=21)+
+  scale_fill_manual(values = c('grey','red'),labels=waiver())+
+  labs(x="", y="",size="Relative abundance (%)",color="",fill="")+
+  #guides(fill = "none",color="none")+
+  ggtitle("Top 10 gene families in 'Ig+' microbes in Control/Patient")+
+  scale_size(limits = NULL, range = c(.1,6), breaks = waiver()) +
+  theme(legend.key = element_blank(),
+        legend.key.size = unit(0.001, 'cm'),
+        axis.text.x =element_text(colour = "black", size = 9, face = "bold", angle = 90, vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", face = "bold", size = 10),
+        legend.title = element_text(size = 7, face = "bold"),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 0.8),
+        panel.grid.major.y = element_line(colour = "grey95"),
+      ) +
+  scale_x_discrete(position = "top")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
