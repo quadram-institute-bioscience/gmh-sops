@@ -251,13 +251,14 @@ process BUBBLE_PLOTS {
     path summary
 
     output:
-    path '*'
+    path 'plots-pathways'
 
     script:
     """
     #Plot the top N genefamilies and pathways in the study
     bubble_plot.R summary/qc_report.csv summary/top20_GFabundance-rel.csv top20gf False ./
     bubble_plot.R summary/qc_report.csv summary/top20_PWabundance-rel.csv top20pa False ./
+    mv plots plots-pathways
     """
 }
 process BUBBLE_TAXA {
@@ -266,14 +267,14 @@ process BUBBLE_TAXA {
     path '*'
 
     output:
-    path 'plots'
+    path 'plots-taxa'
 
     script:
     """
     #Plot the top N genefamilies and pathways in the study
     mkdir -p plots
-    heatmap.R Species-rel.csv ./plots
-    heatmap.R Genus-rel.csv ./plots
+    heatmap.R Species-rel.csv ./plots-taxa/
+    heatmap.R Genus-rel.csv ./plots-taxa
     """
 }
 workflow {
