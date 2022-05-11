@@ -238,9 +238,9 @@ process TOP_PATHWAYS {
     script:
     """
     #Estimate the top N genefamilies and pathways in the study
-    mkdir -p summary/{qc,plots}
-    extract_genefamilies.py -i Genefamilies.tsv -st stats.tsv -qc summary/qc -o summary/plots/top20 -t 20
-    extract_pathabundance.py -i Pathabundance.tsv -o summary/plots/top20 -t 20
+    mkdir -p summary
+    extract_genefamilies.py -i Genefamilies.tsv -st stats.tsv -qc summary/qc -o summary/top20 -t 20
+    extract_pathabundance.py -i Pathabundance.tsv -o summary/top20 -t 20
     """
 }
 
@@ -251,13 +251,13 @@ process BUBBLE_PLOTS {
     path summary
 
     output:
-    path 'plots'
+    path '*'
 
     script:
     """
     #Plot the top N genefamilies and pathways in the study
-    bubble_plot.R summary/qc_report.csv summary/plots/top20_GFabundance-rel.csv top20gf False ./
-    bubble_plot.R summary/qc_report.csv summary/plots/top20_PWabundance-rel.csv top20pa False ./
+    bubble_plot.R summary/qc_report.csv summary/top20_GFabundance-rel.csv top20gf False ./
+    bubble_plot.R summary/qc_report.csv summary/top20_PWabundance-rel.csv top20pa False ./
     """
 }
 process BUBBLE_TAXA {
