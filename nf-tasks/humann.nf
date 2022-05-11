@@ -51,17 +51,23 @@ process FASTP {
 
     input:
     tuple val(sample_id), path(reads) 
-    file("versions.txt")
+    path("versions.lock")
     
     output:
-    tuple val(sample_id), path("filt/${sample_id}_R{1,2}.fastq.gz")
+    tuple val(sample_id), path("${sample_id}.fq.gz")
   
     script:
     """
     mkdir -p filt
-    fastp -i ${reads[0]} -I ${reads[1]} -o filt/${sample_id}_R1.fastq.gz -O filt/${sample_id}_R2.fastq.gz \
-      --detect_adapter_for_pe --length_required 75 --thread ${task.cpus}
+    fastp -i ${reads[0]} -I ${reads[1]} --stdout \
+      --detect_adapter_for_pe --length_required 75 --thread ${task.cpus} \
+      | seqfu cat --strip-name --strip-comments  --prefix "${sample_id}." \
+      | gzip -c > ${sample_id}.fq.gz
     """     
+    stub:
+    """
+    cat ${reads[0]} | head -n 4000 | gzip -c > ${sample_id}.fq.gz
+    """
 }
 process INTERLEAVE {
     tag "ilv $sample_id"
@@ -77,10 +83,14 @@ process INTERLEAVE {
     """
     seqfu interleave -1 ${reads[0]} -2 ${reads[1]} | seqfu cat --strip-name --strip-comments  --prefix "${sample_id}." > ${sample_id}.fastq
     """  
+    stub:
+    """
+    gzip -dc ${reads[0]} > ${sample_id}.fastq
+    """
 }  
 process HUMANN {
     tag "$sample_id"
-    publishDir params.outdir, mode:'copy'
+    publishDir "$params.outdir/humann/", mode:'copy'
     label "humann"
     
     input:
@@ -90,20 +100,26 @@ process HUMANN {
     path(metaphlandb)
     
     output:
-    tuple val(sample_id), path("${sample_id}/${sample_id}_genefamilies.tsv"), emit: genefamilies
-    tuple val(sample_id), path("${sample_id}/${sample_id}_pathabundance.tsv"), emit: pathabundance
-    tuple val(sample_id), path("${sample_id}/${sample_id}_pathcoverage.tsv"), emit: pathcoverage
-    tuple val(sample_id), path("${sample_id}/${sample_id}_humann_temp/${sample_id}_metaphlan_bugs_list.tsv"), emit: metaphlan
+    tuple val(sample_id), path("${sample_id}_genefamilies.tsv"), emit: genefamilies
+    tuple val(sample_id), path("${sample_id}_pathabundance.tsv"), emit: pathabundance
+    tuple val(sample_id), path("${sample_id}_pathcoverage.tsv"), emit: pathcoverage
+    tuple val(sample_id), path("${sample_id}_metaphlan_bugs_list.tsv"), emit: metaphlan
     
   
     script:
     """
+    INDEX=\$(cat mpa/mpa_latest)
     humann -i ${reads} -o $sample_id --threads ${task.cpus} --output-basename $sample_id \
         --nucleotide-database ${chocophlan} \
         --protein-database ${uniref} \
-        --metaphlan-options="--bowtie2db ${metaphlandb} --add_viruses --unknown_estimation"
-
+        --metaphlan-options="-x \$INDEX --bowtie2db ${metaphlandb} --unknown_estimation"
+    mv ${sample_id}/*tsv .
+    mv ${sample_id}/${sample_id}_humann_temp/${sample_id}_metaphlan_bugs_list.tsv ${sample_id}_metaphlan_bugs_list.tsv
     """  
+    stub:
+    """
+    getoutput.py $sample_id
+    """
 }  
  
 process multiqc {
@@ -117,14 +133,46 @@ process multiqc {
      
     script:
     """
-    multiqc --cl_config "prokka_fn_snames: True" . 
+    multiqc . 
     """
 } 
+
+process JOIN {
+    publishDir "$params.outdir", mode:'copy'
+    input:
+    path '*'
+
+    output:
+    path 'tables/*tsv'
+
+    script:
+    """
+    mkdir -p tables
+    humann_join_tables -i ./ --file_name _genefamilies.tsv -s -o tables/GeneFamilies.tsv
+    humann_join_tables -i ./ --file_name _pathabundance.tsv -s -o tables/PathAbundance.tsv
+    humann_join_tables -i ./ --file_name _pathcoverage.tsv -s -o tables/PathCoverage.tsv
+    """
+}
+
+process JOINMPA {
+    publishDir "$params.outdir", mode:'copy'
+    input:
+    path "*"
+
+    output:
+    path "tables/Taxa_merged.tsv"
+
+    script:
+    """
+    mkdir -p tables
+    merge_metaphlan_tables.py *_metaphlan_bugs_list.tsv > tables/Taxa_merged.tsv
+    """
+}
 
 workflow {
    VERSIONS()
    FASTP(reads, VERSIONS.out)
-   INTERLEAVE(FASTP.out)
-   HUMANN(INTERLEAVE.out, CHOCOPHLAN, UNIREF, METAPHLANDB)
-    
+   HUMANN(FASTP.out, CHOCOPHLAN, UNIREF, METAPHLANDB)
+   JOINMPA((HUMANN.out.metaphlan).map{it -> it[1]}.collect())
+   JOIN( HUMANN.out.genefamilies.mix( HUMANN.out.pathabundance, HUMANN.out.pathcoverage).map{it -> it[1]}.collect())
 }
