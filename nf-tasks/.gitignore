@@ -1,2 +1,7 @@
 utility_scripts/
 phix/
+.nextflow.log*
+nf-human
+work
+.nextflow
+nf-humann
