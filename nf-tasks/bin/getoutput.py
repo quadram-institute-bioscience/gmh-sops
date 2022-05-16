@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+#for: humann.nf
+
 import sys, os
 import random
 

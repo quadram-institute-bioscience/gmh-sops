@@ -55,12 +55,15 @@ process FASTP {
     
     output:
     tuple val(sample_id), path("${sample_id}.fq.gz")
+    tuple val(sample_id), path("${sample_id}.fastp.json"), emit: json
+    tuple val(sample_id), path("${sample_id}.fastp.html"), emit: html
+    
   
     script:
     """
-    mkdir -p filt
     fastp -i ${reads[0]} -I ${reads[1]} --stdout \
       --detect_adapter_for_pe --length_required 75 --thread ${task.cpus} \
+      -h ${sample_id}.fastp.html -j ${sample_id}.fastp.json \
       | seqfu cat --strip-name --strip-comments  --prefix "${sample_id}." \
       | gzip -c > ${sample_id}.fq.gz
     """     
@@ -278,13 +281,21 @@ process BUBBLE_TAXA {
     """
 }
 workflow {
+   // Collect versions (and ensures that the programs are available)
    VERSIONS()
+   // Clean reads, interleave (versions is used as lock to run VERSION first)
    FASTP(reads, VERSIONS.out)
-    STATS(FASTP.out)
-    JOIN_STATS( STATS.out.map{it -> it[1]}.collect() )
+
+   // Count reads, merge counts
+   STATS(FASTP.out)
+   JOIN_STATS( STATS.out.map{it -> it[1]}.collect() )
+   
+   // RUN HUMANN and use its tools to merge tables
    HUMANN(FASTP.out, CHOCOPHLAN, UNIREF, METAPHLANDB)
    JOIN_TAXONOMY((HUMANN.out.metaphlan).map{it -> it[1]}.collect())
    JOIN( HUMANN.out.genefamilies.mix( HUMANN.out.pathabundance, HUMANN.out.pathcoverage).map{it -> it[1]}.collect())
+
+   // Sumeet Tiwari scripts to summarise results
    TOP_PATHWAYS(JOIN.out, JOIN_STATS.out)
    BUBBLE_PLOTS(TOP_PATHWAYS.out)
    TOP_TAXA(JOIN_TAXONOMY.out)

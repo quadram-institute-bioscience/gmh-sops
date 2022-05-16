@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
+#for: humann.nf
 
-#from matplotlib import colors
 import pandas as pd
 import argparse
 
@@ -33,7 +33,7 @@ def extract_pathways():
     pa=pa.loc[pa['# Pathway']!='UNMAPPED'] #Discard the unmapped reads
     pa=pa.loc[pa['# Pathway']!='UNINTEGRATED'] #Discard the unintegrated means genes that do not belongs to any of the known pathwayys
     pa['# Pathway']=pa['# Pathway'].str.split(":",expand=True)[0]
-    pa.to_csv(f'{args.output}_PWabundance.csv',index=False)
+    #pa.to_csv(f'{args.output}_PWabundance.csv',index=False)
     return pa
 
 def topN_pa_across_samples(pa_samples):
