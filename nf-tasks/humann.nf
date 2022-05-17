@@ -242,7 +242,7 @@ process TOP_PATHWAYS {
     """
     #Estimate the top N genefamilies and pathways in the study
     mkdir -p summary
-    extract_genefamilies.py -i Genefamilies.tsv -st stats.tsv -qc summary/qc -o summary/top20 -t 20
+    extract_genefamilies.py -i GeneFamilies.tsv -st stats.tsv -qc summary/qc -o summary/top20 -t 20
     extract_pathabundance.py -i Pathabundance.tsv -o summary/top20 -t 20
     """
 }
