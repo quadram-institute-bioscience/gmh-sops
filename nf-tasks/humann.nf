@@ -12,7 +12,7 @@ reads = Channel
         .fromFilePairs(params.reads, checkIfExists: true)
 
 log.info """
-         GMH Humann (version 0.1)
+         GMH Humann (version 0.2)
          ===================================
          input reads  : ${params.reads}
          outdir       : ${params.outdir}
@@ -54,7 +54,7 @@ process FASTP {
     path("versions.lock")
     
     output:
-    tuple val(sample_id), path("${sample_id}.fq.gz")
+    tuple val(sample_id), path("${sample_id}.fq.gz"), emit: reads
     tuple val(sample_id), path("${sample_id}.fastp.json"), emit: json
     tuple val(sample_id), path("${sample_id}.fastp.html"), emit: html
     
@@ -70,6 +70,8 @@ process FASTP {
     stub:
     """
     cat ${reads[0]} | head -n 4000 | gzip -c > ${sample_id}.fq.gz
+    touch ${sample_id}.fastp.json
+    touch ${sample_id}.fastp.html
     """
 }
 
@@ -200,9 +202,10 @@ process JOIN {
 
 
 process TOP_TAXA {
+    label 'process_filtering'
     publishDir "$params.outdir/top_taxa/", mode:'copy'
     input:
-    path "Taxaabundance_merged.tsv"
+    path tables
 
     output:
     path '*.csv'
@@ -210,8 +213,8 @@ process TOP_TAXA {
     script:
     """
     #Estimate the top N genefamilies and pathways in the study
-    extract_taxaabundance.py -i Taxaabundance_merged.tsv -o Species -r S -t 20
-    extract_taxaabundance.py -i Taxaabundance_merged.tsv -o Genus -r G -t 20
+    extract_taxaabundance.py -i Taxa_merged.tsv -o Species -r S -t 20
+    extract_taxaabundance.py -i Taxa_merged.tsv -o Genus -r G -t 20
     """
 }
 process JOIN_TAXONOMY {
@@ -243,7 +246,7 @@ process TOP_PATHWAYS {
     #Estimate the top N genefamilies and pathways in the study
     mkdir -p summary
     extract_genefamilies.py -i GeneFamilies.tsv -st stats.tsv -qc summary/qc -o summary/top20 -t 20
-    extract_pathabundance.py -i Pathabundance.tsv -o summary/top20 -t 20
+    extract_pathabundance.py -i PathAbundance.tsv -o summary/top20 -t 20
     """
 }
 
@@ -267,7 +270,7 @@ process BUBBLE_PLOTS {
 process BUBBLE_TAXA {
     publishDir "$params.outdir/", mode:'copy'
     input:
-    path '*'
+    path top_taxa
 
     output:
     path 'plots-taxa'
@@ -287,11 +290,11 @@ workflow {
    FASTP(reads, VERSIONS.out)
 
    // Count reads, merge counts
-   STATS(FASTP.out)
+   STATS(FASTP.out.reads)
    JOIN_STATS( STATS.out.map{it -> it[1]}.collect() )
    
    // RUN HUMANN and use its tools to merge tables
-   HUMANN(FASTP.out, CHOCOPHLAN, UNIREF, METAPHLANDB)
+   HUMANN(FASTP.out.reads, CHOCOPHLAN, UNIREF, METAPHLANDB)
    JOIN_TAXONOMY((HUMANN.out.metaphlan).map{it -> it[1]}.collect())
    JOIN( HUMANN.out.genefamilies.mix( HUMANN.out.pathabundance, HUMANN.out.pathcoverage).map{it -> it[1]}.collect())
 
