@@ -70,7 +70,7 @@ process FASTP {
     stub:
     """
     cat ${reads[0]} | head -n 4000 | gzip -c > ${sample_id}.fq.gz
-    touch ${sample_id}.fastp.json
+    echo '{ "summary": { "after_filtering": { "total_reads":1090016, "total_bases":159862544,"read1_mean_length":146}}}' > ${sample_id}.fastp.json
     touch ${sample_id}.fastp.html
     """
 }
@@ -112,6 +112,19 @@ process JOIN_STATS {
     """
     cat *.tsv | head -n 1 > stats.tsv
     grep -v 'File' *.tsv | cut -f 2 -d ":" | sort >> stats.tsv
+    """
+}
+
+process JSON_STATS {
+    input:
+    path "*"
+
+    output:
+    path "stats.tsv"
+
+    script:
+    """
+    getCountsFromFastp.py --fields 10 --header --output stats.tsv *.fastp.json
     """
 }
 process INTERLEAVE {
@@ -204,8 +217,9 @@ process JOIN {
 process TOP_TAXA {
     label 'process_filtering'
     publishDir "$params.outdir/top_taxa/", mode:'copy'
+
     input:
-    path tables
+    path "merged-taxonomy.tsv"
 
     output:
     path '*.csv'
@@ -213,8 +227,8 @@ process TOP_TAXA {
     script:
     """
     #Estimate the top N genefamilies and pathways in the study
-    extract_taxaabundance.py -i Taxa_merged.tsv -o Species -r S -t 20
-    extract_taxaabundance.py -i Taxa_merged.tsv -o Genus -r G -t 20
+    extract_taxaabundance.py -i merged-taxonomy.tsv -o Species -r S -t 20
+    extract_taxaabundance.py -i merged-taxonomy.tsv -o Genus -r G -t 20
     """
 }
 process JOIN_TAXONOMY {
@@ -290,16 +304,17 @@ workflow {
    FASTP(reads, VERSIONS.out)
 
    // Count reads, merge counts
-   STATS(FASTP.out.reads)
-   JOIN_STATS( STATS.out.map{it -> it[1]}.collect() )
-   
+   //STATS(FASTP.out.reads)
+   //JOIN_STATS( STATS.out.map{it -> it[1]}.collect() )
+   JSON_STATS(FASTP.out.json.map{it -> it[1]}.collect())
+
    // RUN HUMANN and use its tools to merge tables
    HUMANN(FASTP.out.reads, CHOCOPHLAN, UNIREF, METAPHLANDB)
    JOIN_TAXONOMY((HUMANN.out.metaphlan).map{it -> it[1]}.collect())
    JOIN( HUMANN.out.genefamilies.mix( HUMANN.out.pathabundance, HUMANN.out.pathcoverage).map{it -> it[1]}.collect())
 
    // Sumeet Tiwari scripts to summarise results
-   TOP_PATHWAYS(JOIN.out, JOIN_STATS.out)
+   TOP_PATHWAYS(JOIN.out, JSON_STATS.out)
    BUBBLE_PLOTS(TOP_PATHWAYS.out)
    TOP_TAXA(JOIN_TAXONOMY.out)
    BUBBLE_TAXA(TOP_TAXA.out)
